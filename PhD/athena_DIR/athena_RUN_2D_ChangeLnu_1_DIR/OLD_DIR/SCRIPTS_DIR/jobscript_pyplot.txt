@@ -1,0 +1,40 @@
+#!/bin/bash
+#SBATCH --account=PAS2229
+#SBATCH --time=1:00:00
+#SBATCH --job-name=athena
+#SBATCH --nodes=1
+#SBATCH --ntasks=10
+#SBATCH --mail-type=ALL
+#SBATCH --export=ALL
+#SBATCH --open-mode=append
+
+module load intel/18.0.3
+module load intelmpi/2019.7
+module load miniconda3
+unset I_MPI_PMI_LIBRARY
+set -x
+cd $SLURM_SUBMIT_DIR
+
+DIR=/users/PAS2055/dpochik/test/python_testscript_DIR/DATA_DIR/OUTPUT_2D_HEOS_QWMod_Lnu_38e51_Mdot_0.7_Mach_1.3_t_0.75_11_3_2023_jobscript_test_DIR
+minI=0
+maxI=9
+nTheta=128
+nR=256
+Time=0.75
+rMax=1.0e8
+nRank=10
+gifname=entropy_vr
+
+conda create -n hdf5 python=3.9.7 hdf5=1.10.6 h5py=3.6.0
+conda create -n conda_env
+source activate conda_env
+conda activate hdf5
+conda install mpi4py
+conda install numpy
+conda install hdf5
+conda install matplotlib
+conda install scipy
+conda install -c conda-forge moviepy
+mpirun -n ${nRank} python mpipyscript.py ${DIR} ${minI} ${maxI} ${nTheta} ${nR} ${Time} ${rMax} ${gifname}
+python ../gif2mp4.py ${gifname}
+rm -rf *.gif

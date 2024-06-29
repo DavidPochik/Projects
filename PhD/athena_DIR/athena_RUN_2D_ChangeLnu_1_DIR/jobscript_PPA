@@ -1,0 +1,97 @@
+#!/bin/bash
+#SBATCH --account=PAS2229
+#SBATCH --time=2:00:00
+#SBATCH --job-name=athena
+#SBATCH --nodes=7
+#SBATCH --ntasks=256
+#SBATCH --mail-type=ALL
+#SBATCH --export=ALL
+#SBATCH --open-mode=append
+
+module load intel/18.0.3
+module load intelmpi/2019.7
+module load hdf5
+module load miniconda3
+unset I_MPI_PMI_LIBRARY
+set -x
+cd $SLURM_SUBMIT_DIR
+
+conda create -n hdf5 python=3.9.7 hdf5=1.10.6 h5py=3.6.0
+conda create -n conda_env
+source activate conda_env
+conda activate hdf5
+conda install mpi4py
+conda install numpy
+conda install hdf5
+conda install matplotlib
+conda install scipy
+conda install -c conda-forge moviepy
+
+###################################################
+### SPECIFY THESE INPUTS BEFORE SUBMITTING JOB ####
+###################################################
+filenumber=00100                   # file number of data to be used to create IC
+Lnu=42
+Mdot=0.7
+Mach=2.0
+tmax=7.5e-1
+d_t=3.75e-3
+nRank=200 #200                     # Must be <= ntasks, used for python plot script, typically = maxI +1
+minI=0
+maxI=199 #199                       # Must be a number such that (maxI-minI+1)/nRanks = INT (usually given by tmax/d_t - 1)
+imod_input=40
+pgen=accretion_SimpleOuterBCs
+dataDIR1=/users/PAS2055/dpochik/test/athena_CURRENT_WORKING_DIRECTORY_DIR/athena_WORKING_DIR/2D_OUTPUT_DIR
+dataDIR_Mach=Mach_${Mach}_DIR
+dataDIR_Mdot=Mdot_${Mdot}_DIR
+dataDIR_Lnu=Lnu_${Lnu}_DIR
+dataDIR=${dataDIR1}/${dataDIR_Mach}/${dataDIR_Mdot}/${dataDIR_Lnu}
+
+###################################################
+### MORE INPUT PARAMETERS #########################
+###################################################
+rMin=3.0e6
+rMax=1.0e8
+SrMax=2.0e7  # Rmax for entropy/vr plot
+nR=256
+nTheta=128
+nCell_r=16
+nCell_theta=8
+cores=256 # cores = (nR * nTheta ) / (nCell_r * nCell_theta)
+DIR=OUTPUT_2D_HEOS_QWMod_Lnu_${Lnu}e51_Mdot_${Mdot}_Mach_${Mach}_t_${tmax}_jobscript_test_DIR
+OUT_DIR=/users/PAS2055/dpochik/test/athena_CURRENT_WORKING_DIRECTORY_DIR/athena_WORKING_DIR/2D_OUTPUT_DIR
+athinput=athinput.accretion_auto
+txtfile_DIR=/users/PAS2055/dpochik/test/athena_CURRENT_WORKING_DIRECTORY_DIR/athena_WORKING_DIR/athena_RUN_2D_DIR/ICfiles_DIR
+txtfilename=Lnu_${Lnu}e51_Mdot_${Mdot}_Mach_${Mach}_RPNS_30km.txt
+jobscript=jobscript_ALL.txt
+eos_dir=/users/PAS2055/dpochik/test/athena_CURRENT_WORKING_DIRECTORY_DIR/athena_WORKING_DIR/athena_RUN_2D_DIR/helm_table.dat
+gifname=Lnu_${Lnu}_Mdot_${Mdot}_Mach_${Mach}
+pythondir=/users/PAS2055/dpochik/test/athena_CURRENT_WORKING_DIRECTORY_DIR/athena_WORKING_DIR/athena_RUN_2D_DIR/vis/python
+
+mkdir ${DIR} 
+tarname=${DIR}.tar.gz
+cp ${dataDIR}/${DIR}/${tarname} .
+tar -xzvf ${tarname}
+mv accretion.* ${DIR}
+mv ${tarname} ${DIR}
+rm -rf out_DIR/*
+mv slurm* out_DIR/
+###################################################
+### PLOTTING DATA #################################
+###################################################
+mpirun -n ${nRank} python mpipyscript_FIXED.py ${DIR} ${minI} ${maxI} ${nTheta} ${nR} ${tmax} ${rMax} ${gifname} ${Mdot} ${pythondir} ${Mach} ${SrMax} ${imod_input}
+python gif2mp4.py ${gifname}_entropy_vr
+python gif2mp4.py ${gifname}_Gamma_T
+python gif2mp4.py ${gifname}_Tadv_Theat
+python gif2mp4.py ${gifname}_Multipanel
+python gif2mp4.py ${gifname}_entropy_vr_SrMax
+python gif2mp4.py ${gifname}_Entropy_theta_avg
+tar -zcvf ${DIR}_PLOTS.tar.gz *.gif *.mp4 *.png
+
+mv *.gif *.mp4 *.png ${DIR}
+mv ${DIR}_PLOTS.tar.gz ${DIR}
+rm -rf ${DIR}/accretion.*
+cp out_DIR/slurm-* ${DIR}
+rm -rf ${dataDIR}/*
+mv ${DIR} ${dataDIR}
+

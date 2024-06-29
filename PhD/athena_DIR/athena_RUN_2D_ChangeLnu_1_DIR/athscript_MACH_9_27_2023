@@ -1,0 +1,116 @@
+#!/bin/bash
+#echo --- MAKE SURE NUMBER OF ROWS IN INPUT FILE MATCHES NUMBER OF RADIAL ELEMENTS IN ATHINPUT.ACCRETION ---
+#Lnu=(10 12 14 16 18 20 22 23 24 25 26 27)
+Lnu=(10)
+#Lnu=(64)
+#Lnu=(10 11 12)
+read -p "Specify output file number for making starting IC (in ##### format): " firstfile
+read -p "Specify physical time (in seconds): " physicaltime
+read -p "Specify output frequency (in seconds): " outputfreq
+read -p "Specify output number for reading data (in ##### format): " outputnumber
+read -p "Specify today's date: " date
+read -p "Specify athinput file (athinput.<type>): " athinputfile
+read -p "Specify Mdot (in Msun/s units): " Mdot
+read -p "Specify minimum radius (in #.#e# format, cm units): " rMin
+read -p "Specify maximum radius (in #.#e# format, cm units): " rMax
+read -p "Specify radial resolution: " nR
+read -p "Specify Mach number: " MachNumber
+
+echo "rm -rf accretion.*"
+rm -rf accretion.*
+echo "rm -rf *.txt"
+rm -rf *.txt
+echo "rm -rf *.tar.gz"
+rm -rf *.tar.gz
+
+index=1
+while [ $index -le ${#Lnu[@]} ]
+do
+	if [ $index -eq 1 ]; then
+	        echo Lnu=${Lnu[index-1]}
+		DIR=/home/pochik.1/bashscript_DIR/ChangeLnu_RPNS_30km_DIR/Lnu_${Lnu[index-1]}e51_TauBC_${date}_DIR
+		if [ -d "$DIR" ]; then
+    			echo "$DIR directory exists."
+		else
+			echo "$DIR directory does not exist. Making directory..."
+			mkdir ${DIR}
+		fi
+		# This makes the IC file that includes pressure (only want this to find initial values, not to start the code with it)
+		python3 athdf2txt_StartIC.py ${Mdot} ${firstfile} ${Lnu[index-1]}
+		# This makes the IC for the code itself, which relies on data in a specific directory
+		python3 athdf2txt_firststep.py ${Mdot} ${firstfile} ${Lnu[index-1]}
+		IC_trim_firstrow=$(sed '1!d' Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_30km_StartIC.txt)
+		IC_trim_lastrow=$(sed '$!d' Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_30km_StartIC.txt)
+		echo $IC_trim_firstrow > IC_trim_firstrow.txt
+		echo $IC_trim_lastrow > IC_trim_lastrow.txt
+		cat IC_trim_firstrow.txt
+		cat IC_trim_lastrow.txt
+		IC_RhoB=$(awk -F" " '{print $2}' IC_trim_firstrow.txt)
+		IC_TB=$(awk -F" " '{print $4}' IC_trim_firstrow.txt)
+		IC_YeB=$(awk -F" " '{print $5}' IC_trim_firstrow.txt)
+#		IC_RhoE=$(awk -F" " '{print $2}' IC_trim_lastrow.txt)
+		IC_vE=$(awk -F" " '{print $3}' IC_trim_lastrow.txt)
+		IC_pE=$(awk -F" " '{print $6}' IC_trim_lastrow.txt)
+		python3 Mdot_rhof_calculator_NEW.py ${Mdot} ${IC_vE} ${rMax}
+		# Read values from files
+                IC_RhoE=$(awk -F" " '{print $1}' rho_f_${Mdot}.txt)
+		# Calculating logarithmic scale for radial coordinate
+		python3 r_logscale.py ${rMin} ${rMax} ${nR}
+		rScale=$(awk -F" " '{print $1}' r_scale.txt)
+		echo rScale = ${rScale}
+		echo rho_i = ${IC_RhoB}
+		echo rho_f = ${IC_RhoE}
+		echo T_i   = ${IC_TB}
+		echo Ye_i  = ${IC_YeB}
+		echo v_f   = ${IC_vE}
+		echo p_f   = ${IC_pE}
+
+		mpiexec -n 8 ../../athena_TP_9_25_2023_DIR/athena_TP_9_25_2023_DIR/bin/athena -i ${athinputfile} Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_30km.txt mesh/nx1=${nR} mesh/x1min=${rMin} mesh/x1max=${rMax} mesh/x1rat=${rScale} problem/rho_f=${IC_RhoE} hydro/Ye_0=${IC_YeB} problem/rho_0=${IC_RhoB} problem/T_0=${IC_TB} problem/v_f=${IC_vE} problem/p_f=${IC_pE} problem/MachNumber=${MachNumber} problem/mdot=${Mdot} output1/dt=${outputfreq} output2/dt=${outputfreq} output4/dt=${outputfreq} time/tlim=${physicaltime} problem/L_nubar=${Lnu[index-1]} problem/L_nu=${Lnu[index-1]} problem/file=Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_30km_firststep.txt |tee Lnu_${Lnu[index-1]}e51.txt
+
+		python3 athdf2txt.py ${Lnu[index-1]} ${outputnumber} ${Mdot}
+		tar -zcvf Lnu_${Lnu[index-1]}_Mdot_${Mdot}_RPNS_30km.tar.gz accretion.*
+		mv IC_trim_firstrow.txt ${DIR}
+		mv IC_trim_lastrow.txt ${DIR}
+		mv rho_f_${Mdot}.txt ${DIR}
+		mv r_scale.txt ${DIR}
+		mv Lnu_${Lnu}e51_Mdot_${Mdot[index-1]}_RPNS_30km_StartIC.txt ${DIR}
+		rm -rf accretion.*
+		mv Lnu_${Lnu[index-1]}_Mdot_${Mdot}_RPNS_30km.tar.gz ${DIR}
+		mv Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_30km_firststep.txt ${DIR}
+		mv Lnu_${Lnu[index-1]}e51.txt ${DIR}
+		((index++))
+	else
+	        echo Lnu=${Lnu[index-1]}
+		DIR=/home/pochik.1/bashscript_DIR/ChangeLnu_RPNS_30km_DIR/Lnu_${Lnu[index-1]}e51_TauBC_${date}_DIR
+		if [ -d "$DIR" ]; then
+    			echo "$DIR directory exists."
+		else
+			echo "$DIR directory does not exist. Making directory..."
+			mkdir ${DIR}
+		fi
+
+
+		mpiexec -n 8 ../../athena_TP_9_25_2023_DIR/athena_TP_9_25_2023_DIR/bin/athena -i ${athinputfile} Lnu_${Lnu[index-2]}e51_Mdot_${Mdot}_RPNS_30km.txt mesh/nx1=${nR} mesh/x1min=${rMin} mesh/x1max=${rMax} mesh/x1rat=${rScale} problem/rho_f=${IC_RhoE} hydro/Ye_0=${IC_YeB} problem/rho_0=${IC_RhoB} problem/T_0=${IC_TB} problem/v_f=${IC_vE} problem/p_f=${IC_pE} problem/MachNumber=${MachNumber} problem/mdot=${Mdot} output1/dt=${outputfreq} output2/dt=${outputfreq} output4/dt=${outputfreq} time/tlim=${physicaltime} problem/L_nubar=${Lnu[index-1]} problem/L_nu=${Lnu[index-1]} problem/file=Lnu_${Lnu[index-2]}e51_Mdot_${Mdot}_RPNS_30km.txt |tee Lnu_${Lnu[index-1]}e51.txt
+
+                if [ $index -lt ${#Lnu[@]} ]; then
+			python3 athdf2txt.py ${Lnu[index-1]} ${outputnumber} ${Mdot}
+		else
+			python3 athdf2txt.py ${Lnu[index-1]} ${outputnumber} ${Mdot}_FinalRunOutput
+		fi
+		tar -zcvf Lnu_${Lnu[index-1]}_Mdot_${Mdot}_RPNS_30km.tar.gz accretion.*
+		rm -rf accretion.*
+		mv Lnu_${Lnu[index-1]}_Mdot_${Mdot}_RPNS_30km.tar.gz ${DIR}
+		mv Lnu_${Lnu[index-2]}e51_Mdot_${Mdot}_RPNS_30km.txt ${DIR}
+		mv Lnu_${Lnu[index-1]}e51.txt ${DIR}
+		((index++))
+	fi
+done
+
+FinalDIR=FinalOutputTextFile_directory
+if [ -d "${FinalDIR}" ]; then
+	echo "${FinalDIR} exists."
+else
+	echo "${FinalDIR} does not exist. Making directory..."
+	mkdir ${FinalDIR}
+fi
+mv Lnu_${Lnu[-1]}e51_Mdot_${Mdot}_FinalRunOutput_RPNS_30km.txt ${FinalDIR}
