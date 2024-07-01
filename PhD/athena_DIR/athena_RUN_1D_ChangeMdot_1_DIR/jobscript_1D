@@ -193,10 +193,10 @@ do
 		mv *.txt ${DIRNAME}
 		mv ${DIRNAME} ${fulldatadir}
 		if [ $FC_vE_FLAG -eq 1 ]; then
-			echo "Vr>0.0 detected! Ending script."
-			mv Lnu_${Lnu}e51_Mdot_${Mdot[index-1]}_Mach_${MachNumber}_RPNS_${RPNS}km.txt ${fulldatadir}/${DIRNAME}/
+			echo "Vr>0.0 detected! Ending script."	
 			break
 		fi
+		mv ${fulldatadir}/${DIRNAME}/Lnu_${Lnu}e51_Mdot_${Mdot[index-1]}_Mach_${MachNumber}_RPNS_${RPNS}km.txt .
 		((index++))
 	else
 	        echo Mdot=${Mdot[index-1]}
@@ -265,10 +265,10 @@ do
 				echo Mdot = ${Mdot[index-1]} Msun/s
 				echo Lnu  = ${Lnu}e51 erg/s
 				echo Mach = ${MachNumber}
-				echo RPNS = ${RPNS} km
-				mv Lnu_${Lnu}e51_Mdot_${Mdot[index-1]}_Mach_${MachNumber}_RPNS_${RPNS}km.txt ${fulldatadir}/${DIRNAME}/
+				echo RPNS = ${RPNS} km	
 				break
 			fi
+			mv ${fulldatadir}/${DIRNAME}/Lnu_${Lnu}e51_Mdot_${Mdot[index-1]}_Mach_${MachNumber}_RPNS_${RPNS}km.txt .
 		fi
 		((index++))
 	fi
