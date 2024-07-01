@@ -177,15 +177,15 @@ do
 		tar -zcvf ${DIRNAME}_PLOTS.tar.gz *.png *.gif *.mp4
 		mv *.png *.gif *.mp4 ${DIRNAME}
 		mv ${DIRNAME}_PLOTS.tar.gz ${DIRNAME}/
-		mv IC_trim_firstrow.txt ${DIRNAME}
-		mv IC_trim_lastrow.txt ${DIRNAME}
-		mv rho_f_${Mdot}.txt ${DIRNAME}
-		mv r_scale.txt ${DIRNAME}
-		mv Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_${RPNS}km_StartIC.txt ${DIRNAME}
+#		mv IC_trim_firstrow.txt ${DIRNAME}
+#		mv IC_trim_lastrow.txt ${DIRNAME}
+#		mv rho_f_${Mdot}.txt ${DIRNAME}
+#		mv r_scale.txt ${DIRNAME}
+#		mv Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_${RPNS}km_StartIC.txt ${DIRNAME}
 		rm -rf accretion.*
 		mv ${tarfile} ${DIRNAME}
-		mv Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_${RPNS}km_firststep.txt ${DIRNAME}
-		mv Lnu_${Lnu[index-1]}e51.txt ${DIRNAME}
+#		mv Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_${RPNS}km_firststep.txt ${DIRNAME}
+#		mv Lnu_${Lnu[index-1]}e51.txt ${DIRNAME}
 
 		# look at vr in final zone. If Vr>0, end sript.
 		FC_trim_lastrow_end=$(sed '$!d' Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_${RPNS}km.txt)
@@ -197,10 +197,13 @@ do
 		echo FC_vE_FLAG = ${FC_vE_FLAG}
 		mv FC_vE_FLAG.txt FC_trim_lastrow_end.txt ${DIRNAME}
 		rm -rf ${fulldatadir}/*
+		mv *.txt ${DIRNAME}
 		mv ${DIRNAME} ${fulldatadir}
 		if [ $FC_vE_FLAG -eq 1 ]; then
 			echo "Vr>0.0 detected! Ending script."
-			mv Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_${RPNS}km.txt ${DIRNAME}
+			# Only have to move this file if the script is over, otherwise its needed
+			# for the next step
+			mv Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_${RPNS}km.txt ${fulldatadir}/${DIRNAME}/
 			break
 		fi
 		((index++))
@@ -260,9 +263,10 @@ do
 		rm -rf ${DIRNAME}/accretion.*	
 		mv ${tarfile} ${DIRNAME}/
 		mv ${DIRNAME}_PLOTS.tar.gz ${DIRNAME}/
-		mv Lnu_${Lnu[index-2]}e51_Mdot_${Mdot}_RPNS_${RPNS}km.txt ${DIRNAME}
-		mv Lnu_${Lnu[index-1]}e51.txt ${DIRNAME}	
+#		mv Lnu_${Lnu[index-2]}e51_Mdot_${Mdot}_RPNS_${RPNS}km.txt ${DIRNAME}
+#		mv Lnu_${Lnu[index-1]}e51.txt ${DIRNAME}	
 		rm -rf ${fulldatadir}/*
+		mv *.txt ${DIRNAME}
 		mv ${DIRNAME} ${fulldatadir}
 		if [ $index -lt ${#Lnu[@]} ]; then
 			if [ $FC_vE_FLAG -eq 1 ]; then
@@ -271,14 +275,14 @@ do
 				echo Lnu  = ${Lnu[index-1]}e51 erg/s
 				echo Mach = ${MachNumber}
 				echo RPNS = ${RPNS} km
-				mv Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_${RPNS}km.txt ${DIRNAME}
+				mv Lnu_${Lnu[index-1]}e51_Mdot_${Mdot}_RPNS_${RPNS}km.txt ${fulldatadir}/${DIRNAME}/
 				break
 			fi
 		fi
 		((index++))
 	fi
 done
-
+make clean
 echo "1D JOBSCRIPT COMPLETE"
 
 
