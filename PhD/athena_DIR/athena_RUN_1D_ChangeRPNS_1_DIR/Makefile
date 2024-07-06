@@ -3,7 +3,7 @@
 
 # Files for conditional compilation
 
-PROBLEM_FILE = accretion_NewTau.cpp
+PROBLEM_FILE = accretion_SingleNR_FixedKappa.cpp
 COORDINATES_FILE = spherical_polar.cpp
 EOS_FILE = general/helmholtz_gamma_etot.cpp
 GENERAL_EOS_FILE = general_hydro.cpp

@@ -15,7 +15,7 @@
 
 // configure.py dict(definitions) string values:
 // problem generator
-#define PROBLEM_GENERATOR "accretion_NewTau"
+#define PROBLEM_GENERATOR "accretion_SingleNR_FixedKappa"
 
 // coordinate system
 #define COORDINATE_SYSTEM "spherical_polar"

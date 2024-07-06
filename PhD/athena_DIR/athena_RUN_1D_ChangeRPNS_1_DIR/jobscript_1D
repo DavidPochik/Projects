@@ -29,11 +29,9 @@ conda install -c conda-forge moviepy
 
 ###### MAIN OPTIONS ###
 Lnu=10
-Mdot=1.0
+Mdot=0.7
 MachNumber=2.0
-#R_PNS=(30 32 34 36 38 40 42 44 46 48 50)
-R_PNS=(47 48 49 50)
-#R_PNS=(47 48 49 50)
+R_PNS=(31 32)
 physicaltime=3.0e0
 outputfreq=3.0e-2
 minI=0
@@ -43,6 +41,7 @@ eps_nue=12.6156
 eps_nueb=18.9234
 compile=true
 use30kmIC=false
+useDefaultIC=false
 #### CODE PARAMETERS ####
 firstfile=00100
 outputnumber=00100
@@ -53,10 +52,10 @@ nR=256
 nRcell=2
 nCores=128
 pgen=accretion_SingleNR_FixedKappa #accretion_Mach_FullDefinition_Tfloat
-pythondir=/users/PAS2055/dpochik/test/athena_CURRENT_WORKING_DIRECTORY_DIR/athena_WORKING_DIR/athena_RUN_1D_ChangeRPNS_DIR/vis/python
-eosdir=/users/PAS2055/dpochik/test/athena_CURRENT_WORKING_DIRECTORY_DIR/athena_WORKING_DIR/athena_RUN_1D_ChangeRPNS_DIR/helm_table.dat
-ENDdatadir=/users/PAS2055/dpochik/test/athena_CURRENT_WORKING_DIRECTORY_DIR/athena_WORKING_DIR/1D_OUTPUT_RPNS_DIR
-ENDdatadir_IC=/users/PAS2055/dpochik/test/athena_CURRENT_WORKING_DIRECTORY_DIR/athena_WORKING_DIR/1D_OUTPUT_DIR
+pythondir=vis/python
+eosdir=../eos_DIR/helm_table.dat
+ENDdatadir=../1D_OUTPUT_RPNS_DIR
+ENDdatadir_IC=../1D_OUTPUT_DIR
 
 # Get IC files and stash them in StartIC_DIR
 if ${use30kmIC}; then
@@ -68,11 +67,20 @@ else
 	ICdir=${ENDdatadir}/Mach_${MachNumber}_DIR/Mdot_${Mdot}_DIR/Lnu_${Lnu}_DIR/RPNS_${R_PNS[0]}_DIR/Lnu_${Lnu}e51_Mdot_${Mdot}_Mach_${MachNumber}_DIR	
 	ICtarfile=${ICdir}/Lnu_${Lnu}_Mdot_${Mdot}_Mach_${MachNumber}_RPNS_${R_PNS[0]}km.tar.gz
 fi
-tar -xzvf ${ICtarfile}
-echo "rm -rf StartICFiles_DIR/*.athdf"
-rm -rf StartICFiles_DIR/*.athdf
-mv accretion.prim.${firstfile}.athdf accretion.uov.${firstfile}.athdf StartICFiles_DIR/
-rm -rf accretion.*
+if ${useDefaultIC}; then
+	# replace StartICFiles with default IC files
+	echo Using default IC
+	cp ../default_IC_DIR/*.athdf .	
+	rm -rf StartICFiles_DIR/*.athdf
+	mv accretion.prim.${firstfile}.athdf accretion.uov.${firstfile}.athdf StartICFiles_DIR/
+else
+	# replace StartICFiles with specified IC files, remove extras
+	echo Using specified IC
+	tar -xzvf ${ICtarfile}
+	rm -rf StartICFiles_DIR/*.athdf
+	mv accretion.prim.${firstfile}.athdf accretion.uov.${firstfile}.athdf StartICFiles_DIR/
+	rm -rf accretion.*
+fi
 
 if ${compile}; then
 	echo 'Compiling new executable...'
@@ -83,6 +91,8 @@ else
 	echo 'Using existing executable in bin/'
 fi
 
+echo "rm -rf out_DIR/*.out"
+rm -rf out_DIR/*.out
 echo "rm -rf Lnu_*"
 rm -rf Lnu_*
 echo "rm -rf accretion.*"
@@ -100,13 +110,12 @@ do
 	if [ $index -eq 1 ]; then
 	        echo R_PNS=${R_PNS[index-1]}
 		gifname=Lnu_${Lnu}_Mdot_${Mdot}_Mach_${MachNumber}
-		DIRNAME=Lnu_${Lnu}e51_Mdot_${Mdot}_Mach_${MachNumber}_DIR	
-		DIR=/users/PAS2055/dpochik/test/athena_CURRENT_WORKING_DIRECTORY_DIR/athena_WORKING_DIR/athena_RUN_1D_ChangeRPNS_DIR/${DIRNAME}
-		if [ -d "$DIR" ]; then
-    			echo "$DIR directory exists."
+		DIRNAME=Lnu_${Lnu}e51_Mdot_${Mdot}_Mach_${MachNumber}_DIR		
+		if [ -d "${DIRNAME}" ]; then
+    			echo "${DIRNAME} directory exists."
 		else
-			echo "$DIR directory does not exist. Making directory..."
-			mkdir ${DIR}
+			echo "${DIRNAME} directory does not exist. Making directory..."
+			mkdir ${DIRNAME}
 		fi
 		Machdir=Mach_${MachNumber}_DIR
 		Mdotdir=Mdot_${Mdot}_DIR
@@ -130,7 +139,6 @@ do
 		IC_RhoB=$(awk -F" " '{print $2}' IC_trim_firstrow.txt)
 		IC_TB=$(awk -F" " '{print $4}' IC_trim_firstrow.txt)
 		IC_YeB=$(awk -F" " '{print $5}' IC_trim_firstrow.txt)
-#		IC_RhoE=$(awk -F" " '{print $2}' IC_trim_lastrow.txt)
 		IC_vE=$(awk -F" " '{print $3}' IC_trim_lastrow.txt)
 		IC_pE=$(awk -F" " '{print $6}' IC_trim_lastrow.txt)
 		python Mdot_rhof_calculator_NEW.py ${Mdot} ${IC_vE} ${rMax} ${pythondir}
@@ -149,53 +157,49 @@ do
 
 		mpiexec -n ${nCores} bin/athena -i ${athinputfile} mesh/nx1=${nR} mesh/x1min=${R_PNS[index-1]}.0e5 mesh/x1max=${rMax} mesh/x1rat=${rScale} meshblock/nx1=${nRcell} problem/rho_f=${IC_RhoE} hydro/Ye_0=${IC_YeB} problem/rho_0=${IC_RhoB} problem/T_0=${IC_TB} problem/v_f=${IC_vE} problem/p_f=${IC_pE} problem/MachNumber=${MachNumber} problem/mdot=${Mdot} output1/dt=${outputfreq} output2/dt=${outputfreq} output4/dt=${outputfreq} hydro/eos_file_name=${eosdir} time/tlim=${physicaltime} problem/L_nubar=${Lnu} problem/L_nu=${Lnu} problem/eps_nubar=${eps_nueb} problem/eps_nu=${eps_nue} problem/file=Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${R_PNS[index-1]}km_firststep.txt |tee R_PNS_${R_PNS[index-1]}_OUTPUT.txt
 
-		python athdf2txt.py ${Lnu} ${outputnumber} ${Mdot} ${RPNS[index-1]} ${pythondir}	
+		python athdf2txt.py ${Lnu} ${outputnumber} ${Mdot} ${R_PNS[index-1]} ${pythondir}	
 		tarfile=Lnu_${Lnu}_Mdot_${Mdot}_Mach_${MachNumber}_RPNS_${R_PNS[index-1]}km.tar.gz
 		tar -zcvf ${tarfile} accretion.*
-		cp accretion.* ${DIR}
-		mpirun -n ${nRank} python mpipyscript_NEW.py ${DIR} ${minI} ${maxI} ${nR} ${physicaltime} ${rMax} ${gifname} ${Mdot} ${pythondir} ${MachNumber} ${eps_nue} ${rMax_set} ${Lnu} ${R_PNS[index-1]}
+		cp accretion.* ${DIRNAME}
+		# Make plots
+		mpirun -n ${nRank} python mpipyscript_NEW.py ${DIRNAME} ${minI} ${maxI} ${nR} ${physicaltime} ${rMax} ${gifname} ${Mdot} ${pythondir} ${MachNumber} ${eps_nue} ${rMax_set} ${Lnu} ${R_PNS[index-1]}
 		python gif2mp4.py ${gifname}_Multipanel
 		python gif2mp4.py ${gifname}_Tadv_Theat
 		python gif2mp4.py ${gifname}_Xn_Qdot
-		rm -rf ${DIR}/accretion.*
+		rm -rf ${DIRNAME}/accretion.*
 		tar -zcvf ${DIRNAME}_PLOTS.tar.gz *.png *.gif *.mp4
-		mv *.png *.gif *.mp4 ${DIR}
-		mv ${DIRNAME}_PLOTS.tar.gz ${DIR}/
-		mv IC_trim_firstrow.txt ${DIR}
-		mv IC_trim_lastrow.txt ${DIR}
-		mv rho_f_${Mdot}.txt ${DIR}
-		mv r_scale.txt ${DIR}
-		mv vr${R_PNS[index-1]}km.txt ${DIR}
-		mv Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${R_PNS[index-1]}km_StartIC.txt ${DIR}	
-		mv ${tarfile} ${DIR}
-		mv Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${R_PNS[index-1]}km_firststep.txt ${DIR}
-		mv R_PNS_${R_PNS[index-1]}_OUTPUT.txt ${DIR}
+		mv *.png *.gif *.mp4 ${DIRNAME}
+		mv ${DIRNAME}_PLOTS.tar.gz ${DIRNAME}/
+		mv ${tarfile} ${DIRNAME}	
+
 		# look at vr in final zone. If Vr>0, end sript.
-		FC_trim_lastrow_end=$(sed '$!d' Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${RPNS[index-1]}km.txt)
+		FC_trim_lastrow_end=$(sed '$!d' Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${R_PNS[index-1]}km.txt)
 		echo $FC_trim_lastrow_end > FC_trim_lastrow_end.txt
 		cat FC_trim_lastrow_end.txt
 		FC_vE=$(awk -F" " '{print $3}' FC_trim_lastrow_end.txt)
 		python FC_vE_read.py ${FC_vE}
 		FC_vE_FLAG=$(awk -F" " '{print $1}' FC_vE_FLAG.txt)
 		echo FC_vE_FLAG = ${FC_vE_FLAG}
-		mv FC_vE_FLAG.txt FC_trim_lastrow_end.txt ${DIR}
+		mv FC_vE_FLAG.txt FC_trim_lastrow_end.txt ${DIRNAME}
 		rm -rf ${fulldatadir}/*
-		mv ${DIR} ${fulldatadir}
-		mv Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${RPNS[index-1]}km.txt ${DIR}
+		mv *.txt ${DIRNAME}/
+		mv ${DIRNAME} ${fulldatadir}
 		if [ $FC_vE_FLAG -eq 1 ]; then
 			echo "Vr>0.0 detected! Ending script."	
 			break
 		fi	
+		# Move the input file back to the working directory for the next step if the script is still running
+		mv ${fulldatadir}/${DIRNAME}/Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${R_PNS[index-1]}km.txt .
 		((index++))
 	else
 	        echo R_PNS=${R_PNS[index-1]}	
 		DIRNAME=Lnu_${Lnu}e51_Mdot_${Mdot}_Mach_${MachNumber}_DIR
-		DIR=/users/PAS2055/dpochik/test/athena_CURRENT_WORKING_DIRECTORY_DIR/athena_WORKING_DIR/athena_RUN_1D_ChangeRPNS_DIR/${DIRNAME}	
-		if [ -d "$DIR" ]; then
-    			echo "$DIR directory exists."
+		
+		if [ -d "${DIRNAME}" ]; then
+    			echo "${DIRNAME} directory exists."
 		else
-			echo "$DIR directory does not exist. Making directory..."
-			mkdir ${DIR}
+			echo "${DIRNAME} directory does not exist. Making directory..."
+			mkdir ${DIRNAME}
 		fi
 		gifname=Lnu_${Lnu}_Mdot_${Mdot}_Mach_${MachNumber}
 		Machdir=Mach_${MachNumber}_DIR
@@ -221,43 +225,51 @@ do
 		rm -rf accretion.*
 		
 		mpiexec -n ${nCores} bin/athena -i ${athinputfile} mesh/nx1=${nR} mesh/x1min=${R_PNS[index-1]}.0e5 mesh/x1max=${rMax} mesh/x1rat=${rScale} meshblock/nx1=${nRcell} problem/rho_f=${IC_RhoE} hydro/Ye_0=${IC_YeB} problem/rho_0=${IC_RhoB} problem/T_0=${IC_TB} problem/v_f=${IC_vE} problem/p_f=${IC_pE} problem/MachNumber=${MachNumber} problem/mdot=${Mdot} output1/dt=${outputfreq} output2/dt=${outputfreq} output4/dt=${outputfreq} hydro/eos_file_name=${eosdir} time/tlim=${physicaltime} problem/L_nubar=${Lnu} problem/L_nu=${Lnu} problem/eps_nubar=${eps_nueb} problem/eps_nu=${eps_nue} problem/file=Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${R_PNS[index-1]}km_extrapolate.txt |tee R_PNS_${R_PNS[index-1]}_OUTPUT.txt
-	
-		python athdf2txt.py ${Lnu} ${outputnumber} ${Mdot} ${RPNS[index-1]} ${pythondir}
+		
+		if [ $index -lt ${#R_PNS[@]} ]; then
+			python athdf2txt.py ${Lnu} ${outputnumber} ${Mdot} ${R_PNS[index-1]} ${pythondir}
+
+			# look at vr in final zone. If Vr>0, end sript.
+			FC_trim_lastrow_end=$(sed '$!d' Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${R_PNS[index-1]}km.txt)
+			echo $FC_trim_lastrow_end > FC_trim_lastrow_end.txt
+			cat FC_trim_lastrow_end.txt
+			FC_vE=$(awk -F" " '{print $3}' FC_trim_lastrow_end.txt)
+			python FC_vE_read.py ${FC_vE}
+			FC_vE_FLAG=$(awk -F" " '{print $1}' FC_vE_FLAG.txt)
+			echo FC_vE_FLAG = ${FC_vE_FLAG}
+			mv FC_vE_FLAG.txt FC_trim_lastrow_end.txt ${DIRNAME}
+		else
+			echo "Last step: No athdf2txt file required."
+		fi
 		tarfile=Lnu_${Lnu}_Mdot_${Mdot}_Mach_${MachNumber}_RPNS_${R_PNS[index-1]}km.tar.gz
 		tar -zcvf ${tarfile} accretion.*
-		cp accretion.* ${DIR}
-		mpirun -n ${nRank} python mpipyscript_NEW.py ${DIR} ${minI} ${maxI} ${nR} ${physicaltime} ${rMax} ${gifname} ${Mdot} ${pythondir} ${MachNumber} ${eps_nue} ${rMax_set} ${Lnu} ${R_PNS[index-1]}
+		cp accretion.* ${DIRNAME}
+		mpirun -n ${nRank} python mpipyscript_NEW.py ${DIRNAME} ${minI} ${maxI} ${nR} ${physicaltime} ${rMax} ${gifname} ${Mdot} ${pythondir} ${MachNumber} ${eps_nue} ${rMax_set} ${Lnu} ${R_PNS[index-1]}
 		python gif2mp4.py ${gifname}_Multipanel
 		python gif2mp4.py ${gifname}_Tadv_Theat
 		python gif2mp4.py ${gifname}_Xn_Qdot
 		tar -zcvf ${DIRNAME}_PLOTS.tar.gz *.png *.gif *.mp4
-		mv *.png *.gif *.mp4 ${DIR}
-		mv rho_f_${Mdot}.txt ${DIR}
-		mv r_scale.txt ${DIR}
-		rm -rf ${DIR}/accretion.*	
-		mv ${tarfile} ${DIR}/
-		mv ${DIRNAME}_PLOTS.tar.gz ${DIR}/	
-		mv R_PNS_${R_PNS[index-1]}_OUTPUT.txt ${DIR}
-		mv Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${R_PNS[index-1]}km_extrapolate.txt ${DIR}
-		# look at vr in final zone. If Vr>0, end sript.
-		FC_trim_lastrow_end=$(sed '$!d' Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${RPNS[index-1]}km.txt)
-		echo $FC_trim_lastrow_end > FC_trim_lastrow_end.txt
-		cat FC_trim_lastrow_end.txt
-		FC_vE=$(awk -F" " '{print $3}' FC_trim_lastrow_end.txt)
-		python FC_vE_read.py ${FC_vE}
-		FC_vE_FLAG=$(awk -F" " '{print $1}' FC_vE_FLAG.txt)
-		echo FC_vE_FLAG = ${FC_vE_FLAG}
-		mv FC_vE_FLAG.txt FC_trim_lastrow_end.txt ${DIR}
+		mv *.png *.gif *.mp4 ${DIRNAME}
+		rm -rf ${DIRNAME}/accretion.*	
+		mv ${tarfile} ${DIRNAME}/
+		mv ${DIRNAME}_PLOTS.tar.gz ${DIRNAME}/
 		rm -rf ${fulldatadir}/*
-		mv ${DIR} ${fulldatadir}
-		mv Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${RPNS[index-1]}km.txt ${DIR}
-		if [ $FC_vE_FLAG -eq 1 ]; then
-			echo "Vr>0.0 detected! Ending script."
-			break
-		fi	
+		mv *.txt ${DIRNAME}
+		mv ${DIRNAME} ${fulldatadir}
+		if [ $index -lt ${#R_PNS[@]} ]; then
+			if [ $FC_vE_FLAG -eq 1 ]; then	
+				echo "Vr>0.0 detected! Ending script."
+				echo Mdot = ${Mdot} Msun/s
+				echo Lnu  = ${Lnu[index-1]}e51 erg/s
+				echo Mach = ${MachNumber}
+				echo RPNS = ${R_PNS} km	
+				break
+			fi
+			mv ${fulldatadir}/${DIRNAME}/Lnu_${Lnu}e51_Mdot_${Mdot}_RPNS_${R_PNS[index-1]}km.txt .
+		fi
 		((index++))
 	fi
 done
-
+make clean
 rm -rf accretion.*
 echo "1D JOBSCRIPT COMPLETE"
