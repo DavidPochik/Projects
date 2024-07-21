@@ -31,7 +31,7 @@ conda install -c conda-forge moviepy
 Lnu=10
 Mdot=0.7
 MachNumber=2.0
-R_PNS=(31 32)
+R_PNS=(30 31)
 physicaltime=3.0e0
 outputfreq=3.0e-2
 minI=0
@@ -40,8 +40,8 @@ nRank=100
 eps_nue=12.6156
 eps_nueb=18.9234
 compile=true
-use30kmIC=false
-useDefaultIC=false
+use30kmIC=true
+useDefaultIC=true
 #### CODE PARAMETERS ####
 firstfile=00100
 outputnumber=00100
