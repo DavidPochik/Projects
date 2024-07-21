@@ -30,7 +30,7 @@ except ImportError:
         sys.path.append(os.path.dirname(os.path.abspath(__file__)))
         import helmeos
 
-fn = os.path.join(os.path.dirname(os.path.abspath(__file__)), "helm_table.dat")
+fn = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../eos_DIR/helm_table.dat")
 by_filename = helmeos.HelmTable(fn=fn, temp_n=201, dens_n=541)
 
 DIR_name    = str(sys.argv[1])

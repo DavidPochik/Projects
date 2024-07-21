@@ -2,8 +2,8 @@
 #SBATCH --account=PAS2229
 #SBATCH --time=2:00:00
 #SBATCH --job-name=athena
-#SBATCH --nodes=7
-#SBATCH --ntasks=256
+#SBATCH --nodes=4
+#SBATCH --ntasks=128
 #SBATCH --mail-type=ALL
 #SBATCH --export=ALL
 #SBATCH --open-mode=append
@@ -28,8 +28,8 @@ conda install scipy
 conda install -c conda-forge moviepy
 
 ###### MAIN OPTIONS ###
-MPNS=(1.4 1.6 1.8 2.0)
-Lnu=11.2
+MPNS=(1.4 1.6)
+Lnu=10
 Mdot=0.7
 MachNumber=2.0
 RPNS=30        # Integer format (in km) for R_PNS, used for directory names
@@ -58,7 +58,7 @@ pythondir=vis/python
 eosdir=../eos_DIR/helm_table.dat
 # Get IC files and stash them in StartIC_DIR
 if ${RPNS30km}; then
-	ENDdatadir=.../1D_OUTPUT_DIR
+	ENDdatadir=../1D_OUTPUT_DIR
 	ICdir=${ENDdatadir}/Mach_${MachNumber}_DIR/Mdot_${Mdot}_DIR/Lnu_${Lnu}_DIR/Lnu_${Lnu}e51_Mdot_${Mdot}_Mach_${MachNumber}_DIR
 	ICtarfile=${ICdir}/Lnu_${Lnu}_Mdot_${Mdot}_Mach_${MachNumber}_RPNS_${RPNS}km.tar.gz
 else
@@ -118,7 +118,7 @@ do
 		MPNSdir=MPNS_${MPNS[index-1]}_DIR
 		Machdir=Mach_${MachNumber}_DIR
 		Mdotdir=Mdot_${Mdot}_DIR
-		Lnudir=Lnu_${Lnu}_DIR
+		Lnudir=Lnu_${Lnu}_DIR	
 		mkdir ${ENDdatadir}/${Machdir}
 		mkdir ${ENDdatadir}/${Machdir}/${Mdotdir}
 		mkdir ${ENDdatadir}/${Machdir}/${Mdotdir}/${Lnudir}
