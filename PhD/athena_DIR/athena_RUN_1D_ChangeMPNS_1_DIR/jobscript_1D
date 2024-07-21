@@ -89,8 +89,8 @@ else
 	echo 'Using existing executable in bin/'
 fi
 
-echo "rm -rf out_DIR/*"
-rm -rf out_DIR/*
+echo "rm -rf out_DIR/*.out"
+rm -rf out_DIR/*.out
 echo "rm -rf Lnu_*"
 rm -rf Lnu_*
 echo "rm -rf accretion.*"
